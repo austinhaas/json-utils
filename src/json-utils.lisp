@@ -122,7 +122,7 @@ condition, such as NOT-FOUND-CONDITION when the status code is 404.
 
 Example:
 
- (json-request* (response (:get \"api.twitter.com\" 80 \"1/statuses/public_timeline.json\" :query-args '(\"trim_user" "t\")))
+ (json-request* (response (:get \"api.twitter.com\" 80 \"1/statuses/public_timeline.json\" :query-args '(\"trim_user\" \"t\")))
    (200 (mapcar (lambda (r) (gethash \"text\" r)) response))
    (404 (print \"Not found\")))
 "

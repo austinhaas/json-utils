@@ -8,19 +8,15 @@ typespec [string] and expands into a CHECK-TYPE call for each one."
      ,@(loop for (place typespec string) in type-declarations
           collecting (list 'check-type place typespec string))))
 
-(defun qs (&rest args)
-  "Turns args into a query string. If any value is null, that pair
-will not be included."
-  (assert (evenp (length args)))
-  (with-output-to-string (s)
-    (do ((key (car args) (car args))
-         (val (cadr args) (cadr args))
-         (args (cddr args) (cddr args)))
-        ((null key) s)
-      (unless (null val)
-       (format s "~A=~A" key val)
-       (when args
-         (format s "&"))))))
+(defun qs (alist)
+  "Turns alist into a query string. If any value is null, that pair
+will not be included. If there are no pairs to include, then an empty
+string is returned."
+  (let ((valid-items (remove-if #'null alist :key #'cdr)))
+    (if valid-items
+        (format nil "?~{~A~^&~}" (loop for (key . val) in valid-items
+                                       collecting (format nil "~A=~A" key val)))
+        "")))
 
 (defun yason-encode-to-string (thing)
   "Use yason:encode to convert thing to json and return the result as
@@ -35,15 +31,17 @@ a string."
       (simple-error () (error 'cannot-encode-to-json-condition :bad-input thing)))
     s))
 
-(defun json-request (method host port resource &rest keyword-args &key query-args content ssl &allow-other-keys)
+(defun json-request (method host port resource &rest keyword-args
+                     &key query-args content ssl &allow-other-keys)
   "This is a thin wrapper around drakma:http-request intended to
 simplify JSON requests and paper over some weaknesses. It performs
 the following functions:
 
 The uri is constructed from the supplied parameters.
 
-If query-args are supplied, they should be a plist. The list will be
-converted into an appropriate query string and appended to the uri.
+If query-args is supplied, it should be an alist. The list will be
+converted into an appropriate query string and appended to the uri. If
+any value in the alist is null, that pair will not be included.
 
 The request is initialized with the proper parameters for a JSON
 request, e.g., setting up the content-type, setting the format to
@@ -70,13 +68,13 @@ possible keyword arguments and the return values.
 
 Example:
 
- (json-request :get \"api.twitter.com\" 80 \"1/statuses/public_timeline.json\" :query-args '(\"trim_user\" \"t\"))
+ (json-request :get \"api.twitter.com\" 80 \"1/statuses/public_timeline.json\" :query-args '((\"trim_user\" . \"t\")))
 "
   (check-types (method symbol) (host string) (port integer) (resource string)
                (query-args list) (content (or null string)))
   (handler-case
       (let ((drakma:*text-content-types* (cons (cons "application" "json") drakma:*text-content-types*))
-            (uri (format nil "http~:[~;s~]://~A:~A/~A?~A" ssl host port resource (apply #'qs query-args)))
+            (uri (format nil "http~:[~;s~]://~A:~A/~A~A" ssl host port resource (qs query-args)))
             (args (nconc
                    (list :method method
                          :content-type "application/json; charset=utf-8"
@@ -122,7 +120,7 @@ condition, such as NOT-FOUND-CONDITION when the status code is 404.
 
 Example:
 
- (json-request* (response (:get \"api.twitter.com\" 80 \"1/statuses/public_timeline.json\" :query-args '(\"trim_user\" \"t\")))
+ (json-request* (response (:get \"api.twitter.com\" 80 \"1/statuses/public_timeline.json\" :query-args '((\"trim_user\" . \"t\"))))
    (200 (mapcar (lambda (r) (gethash \"text\" r)) response))
    (404 (print \"Not found\")))
 "

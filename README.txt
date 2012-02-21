@@ -19,8 +19,10 @@ following functions:
 
   The uri is constructed from the supplied parameters.
 
-  If query-args are supplied, they should be a plist. The list will be
-  converted into an appropriate query string and appended to the uri.
+  If query-args is supplied, it should be an alist. The list will be
+  converted into an appropriate query string and appended to the
+  uri. If any value in the alist is null, that pair will not be
+  included.
 
   The request is initialized with the proper parameters for a JSON
   request, e.g., setting up the content-type, setting the format to
@@ -48,7 +50,7 @@ possible keyword arguments and the return values.
 
 Example:
 
- (json-request :get "api.twitter.com" 80 "1/statuses/public_timeline.json" :query-args '("trim_user" "t"))
+ (json-request :get "api.twitter.com" 80 "1/statuses/public_timeline.json" :query-args '(("trim_user" . "t")))
 
 [Macro]
 json-request* ((response-body-var (method host port resource
@@ -79,6 +81,6 @@ condition, such as NOT-FOUND-CONDITION when the status code is 404.
 
 Example:
 
- (json-request* (response (:get "api.twitter.com" 80 "1/statuses/public_timeline.json" :query-args '("trim_user" "t")))
+ (json-request* (response (:get "api.twitter.com" 80 "1/statuses/public_timeline.json" :query-args '(("trim_user" . "t"))))
    (200 (mapcar (lambda (r) (gethash "text" r)) response))
    (404 (print "Not found")))
